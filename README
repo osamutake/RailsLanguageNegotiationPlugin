@@ -1,0 +1,138 @@
+LanugageNegotiation
+===================
+
+This plugin realizes language negotiation of rails template files and 
+that of cached pages, actions and fragments.
+
+Example of language specific template files:
+
+   app/views/layout/application.html.ja.erb
+   app/views/layout/application.html.en.erb
+   app/views/mycontroller/index.html.ja.erb
+   app/views/mycontroller/index.html.en.erb
+   app/views/mycontroller/_partial_template.html.ja.erb
+   app/views/mycontroller/_partial_template.html.en.erb
+
+The plugin will take care of selecting suitable ones from the 
+template files in multiple languages.
+
+Example
+=======
+
+config/routes.rb should be like following:
+
+  ENV['RAILS_ACCEPTABLE_LANGUAGES'] ||= 'ja|en'
+  
+  ActionController::Routing::Routes.draw do |map|
+  
+    lang_regexp= Regexp.new( ENV['RAILS_ACCEPTABLE_LANGUAGES'] )
+  
+    map.connect ':controller.:rails_language', :format => 'html', :action => 'index',
+                        :requirements => { :rails_language => lang_regexp }
+    map.connect ':controller/:action.:rails_language', :format => 'html',
+                        :requirements => { :rails_language => lang_regexp }
+    map.connect ':controller/:action/:id.:rails_language', :format => 'html',
+                        :requirements => { :rails_language => lang_regexp }
+    map.connect ':controller/:action/:id', :format => 'html'
+  
+    map.connect ':controller/:action/:id.:format.:rails_language',
+                        :requirements => { :rails_language => lang_regexp }
+    map.connect ':controller/:action/:id.:format',
+                        :defaults => { :action => 'index', :format => 'html' }
+  
+  end
+
+then, you can access your application in the following ways:
+
+  http://www.example.com/mycontroller
+  http://www.example.com/mycontroller.ja
+  http://www.example.com/mycontroller/index
+  http://www.example.com/mycontroller/index.ja
+  http://www.example.com/mycontroller/index/0
+  http://www.example.com/mycontroller/index/0.ja
+  http://www.example.com/mycontroller/index/0.html
+  http://www.example.com/mycontroller/index/0.html.ja
+
+Create templates in multiple languages like:
+
+   app/views/layout/application.html.ja.erb
+   app/views/layout/application.html.en.erb
+   app/views/mycontroller/index.html.ja.erb
+   app/views/mycontroller/index.html.en.erb
+   app/views/mycontroller/_partial_template.html.ja.erb
+   app/views/mycontroller/_partial_template.html.en.erb
+
+Suitable ones are selected by the plugin from the following information:
+
+ 1. Language specification in the URI, like
+   http://www.example.com/mycontroller.en
+   The specified language can be refered as params[:rails_language].
+
+ 2. Same langage as the previous access, which is stored 
+   in cookies['rails_language']
+
+ 3. Browser specific preference, which is passed in
+   ENV['HTTP_ACCEPT_LANGUAGE'].
+
+ 4. Server specific preference described in
+   ENV['RAILS_ACCEPTABLE_LANGUAGES'], which should be set in
+   config/routes.rb or public/.htaccess .
+
+ 5. If the most prefered one is unavailable, the plugin offers the
+   next prefered available one.
+
+Plugin make rails store the cached contents with language 
+specified file/key names.
+
+In order to make apache2 find correct cached pages,
+public/.htaccess can be like
+
+  # rails setting
+  SetEnv RAILS_RELATIVE_URL_ROOT /negotiation
+  SetEnv RAILS_ENV production
+  SetEnv RAILS_ACCEPTABLE_LANGUAGES ja|en
+  
+  # save preferential language in cookie
+  SetEnvIf Cookie "rails_language=([a-z][a-z])" prefer-language=$1
+  
+  # avoid error due to cache miss
+  LanguagePriority ja en
+  ForceLanguagePriority Prefer Fallback
+  
+  # rewrite start
+  RewriteEngine On
+  
+  # default format of ".html"
+  RewriteCond %{HTTP_ACCEPT} html
+  RewriteCond %{SCRIPT_FILENAME} !\.html\.
+  RewriteCond %{SCRIPT_FILENAME} (.*)\.([a-z][a-z])$
+  RewriteCond %1.html.%2 -f
+  RewriteRule (.*)\.([a-z][a-z])$ $1.html.$2 [L]
+  
+  # rails' default rules
+  RewriteRule ^$ index.html [QSA]
+  RewriteRule ^([^.]+)$ $1.html [QSA]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  # change this to adapt to your server
+  RewriteRule ^(.*)$ dispatch.cgi [QSA,L]
+  
+  # detect cache miss for prefer-language
+  RewriteCond %{ENV:prefer-language} ^[a-z][a-z]$
+  RewriteCond %{ENV:prefer-language} !=$2
+  RewriteRule (.*\.html\.)([a-z][a-z]) $1%{ENV:prefer-language} [L]
+  
+  # detect cache miss for accept-language
+  # omit this section if performance matters
+  RewriteCond %{HTTP:Accept-Language} !$2 [NC]
+  RewriteCond %{HTTP:Accept-Language} ([a-z][a-z])
+  RewriteRule (.*\.html\.)([a-z][a-z]) $1%1
+
+
+You might want to modify the line
+
+  RewriteRule ^(.*)$ dispatch.cgi [QSA,L]
+
+to adapt to your rails server.
+
+
+Copyright (c) 2009 Osamu TAKEUCHI <osamu@big.jp>, released under the MIT license
