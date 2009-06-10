@@ -8,7 +8,7 @@ class ActionController::AbstractRequest
   attr :env, true
 end
 
-class LanugageNegotiationTest < ActiveSupport::TestCase
+class LanguageNegotiationTest < ActiveSupport::TestCase
 
   test "ActionController_AbstractRequest_acceptable_language?" do
  

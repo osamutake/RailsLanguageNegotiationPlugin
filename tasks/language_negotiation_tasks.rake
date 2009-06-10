@@ -1,4 +1,4 @@
 # desc "Explaining what the task does"
-# task :lanugage_negotiation do
+# task :language_negotiation do
 #   # Task goes here
 # end

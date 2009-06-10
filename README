@@ -1,4 +1,4 @@
-LanugageNegotiation
+LanguageNegotiation
 ===================
 
 This plugin realizes language negotiation of rails template files and 
@@ -27,13 +27,13 @@ config/routes.rb should be like following:
   
     lang_regexp= Regexp.new( ENV['RAILS_ACCEPTABLE_LANGUAGES'] )
   
+    map.connect ':controller/:action/:id', :format => 'html'
     map.connect ':controller.:rails_language', :format => 'html', :action => 'index',
                         :requirements => { :rails_language => lang_regexp }
     map.connect ':controller/:action.:rails_language', :format => 'html',
                         :requirements => { :rails_language => lang_regexp }
     map.connect ':controller/:action/:id.:rails_language', :format => 'html',
                         :requirements => { :rails_language => lang_regexp }
-    map.connect ':controller/:action/:id', :format => 'html'
   
     map.connect ':controller/:action/:id.:format.:rails_language',
                         :requirements => { :rails_language => lang_regexp }

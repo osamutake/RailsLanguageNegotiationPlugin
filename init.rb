@@ -1,2 +1,2 @@
 # Include hook code here
-require "lanugage_negotiation"
+require "language_negotiation"

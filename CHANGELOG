@@ -1,4 +1,10 @@
-commit e3a80c358062e8a3046a0889e54c09590f34a626
+commit aef2a179994996fc5907c377d55e4724bca7c9e3
+Author: Osamu TAKEUCHI <osamu@big.jp>
+Date:   Wed Jun 10 19:36:00 2009 +0900
+
+    Typo fixing lanugage -> language
+
+commit 4e7634c024a6f5d2347d6987fdd861c000a30263
 Author: Osamu TAKEUCHI <osamu@big.jp>
 Date:   Wed Jun 10 17:14:14 2009 +0900
 
