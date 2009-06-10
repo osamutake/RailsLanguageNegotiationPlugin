@@ -38,36 +38,41 @@ class LanugageNegotiationTest < ActiveSupport::TestCase
     req.env = {}
  
     # server default
-    assert_equal [ :ja, :en, :fr ], req.accepts_languages!
+    assert_equal [ :no_lang, :ja, :en, :fr ], req.accepts_languages!
+    assert_equal [ :ja, :en, :fr ], req.language_priority
  
     # ignore invalid specifications
     req.cookies = { 'rails_language' => ['xx'] }
     req.env = { 'HTTP_ACCEPT_LANGUAGE' => 'es, de' }
-    assert_equal [ :ja, :en, :fr ], req.accepts_languages!
+    assert_equal [ :no_lang, :ja, :en, :fr ], req.accepts_languages!
+    assert_equal [ :ja, :en, :fr ], req.language_priority
     
     # Accept-Language
     req.env = { 'HTTP_ACCEPT_LANGUAGE' => 'en-us, fr, en, ja' }
-    assert_equal [ :en, :fr, :ja ], req.accepts_languages!
+    assert_equal [ :en, :fr, :ja, :no_lang ], req.accepts_languages!
+    assert_equal [ :en, :fr, :ja ], req.language_priority
  
     req.env = { 'HTTP_ACCEPT_LANGUAGE' => 'en-us;q=0.8, fr;q=0.1, en, ja' }
-    assert_equal [ :en, :fr, :ja ], req.accepts_languages!
+    assert_equal [ :en, :fr, :ja, :no_lang ], req.accepts_languages!
+    assert_equal [ :en, :fr, :ja ], req.language_priority
  
     # cookie
     req.cookies = { 'rails_language' => ['ja'] }
-    assert_equal [ :ja, :en, :fr ], req.accepts_languages!
+    assert_equal [ :ja, :en, :fr, :no_lang ], req.accepts_languages!
+    assert_equal [ :ja, :en, :fr ], req.language_priority
  
     req.cookies = { 'rails_language' => ['fr'] }
-    assert_equal [ :fr, :en, :ja ], req.accepts_languages!
+    assert_equal [ :fr, :en, :ja, :no_lang ], req.accepts_languages!
  
     req.env = {}
-    assert_equal [ :fr, :ja, :en ], req.accepts_languages!
+    assert_equal [ :fr, :no_lang, :ja, :en ], req.accepts_languages!
  
     # arg
-    assert_equal [ :ja, :fr, :en ], req.accepts_languages!('ja')
+    assert_equal [ :ja, :fr, :no_lang, :en ], req.accepts_languages!('ja')
  
-    assert_equal [ :en, :fr, :ja ], req.accepts_languages!('en')
+    assert_equal [ :en, :fr, :no_lang, :ja ], req.accepts_languages!('en')
  
-    assert_equal [ :fr, :ja, :en ], req.accepts_languages!('fr')
+    assert_equal [ :fr, :no_lang, :ja, :en ], req.accepts_languages!('fr')
  
   end
   

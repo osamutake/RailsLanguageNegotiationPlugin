@@ -19,10 +19,8 @@
  
  class ActionController::AbstractRequest
  
-   # will be set by ActionView::Base._pick_template
-   attr :language, true
- 
    def accepts_languages!(language=nil)
+     @language_priority= nil
      @accepts_languages= [
          language ? language.to_sym : nil,
          ( cookie = cookies['rails_language'] and l = cookie.first and 
@@ -31,12 +29,18 @@
              lsym= l.split(/;|\-/,2)[0].strip.downcase.to_sym
              ActionController::AbstractRequest.acceptable_language?(lsym) ? lsym : nil
          },
+         :no_lang,
          ActionController::AbstractRequest.acceptable_languages
      ].flatten.compact.uniq
    end
  
    def accepts_languages
      @accepts_languages || accepts_languages!
+   end
+ 
+   def language_priority
+     @language_priority ||= 
+         accepts_languages.delete_if{ |l| l == :no_lang }
    end
  
  end
@@ -95,7 +99,9 @@
  
  private
  
-   def _pick_template_sub(template_file_name, lang="")
+   def _pick_template_sub(template_file_name, lang)
+      lang = ".#{lang}"
+      lang = "" if lang == :no_lang
      if template = self.view_paths["#{template_file_name}.#{template_format}#{lang}"]
        return template
      elsif template = self.view_paths["#{template_file_name}#{lang}"]
@@ -116,41 +122,32 @@
    unmemoize :_pick_template if memoized? :_pick_template
    def _pick_template(template_path)
      return template_path if template_path.respond_to?(:render)
-     path = template_path.sub(/^\//, '')
-     if ( m = path.match(/(.*)\.(\w+)$/) ) && 
-           ActionView::Template.template_handler_extensions.include?(m[2])
-       template_file_name, template_file_extension = m[1], m[2]
-     else
-       template_file_name = path
-     end
+ 
+     @extension_regexp_src ||= 
+         ActionView::Template.template_handler_extensions.map{ |e| Regexp.escape(e) }.join('|')
+     @extension_regexp ||= /^\/?(.*?)(?:\.(#{@extension_regexp_src}))?$/
+     template_file_name, template_file_extension = template_path.match(@extension_regexp)
  
      # search for localized version
      if controller && controller.respond_to?(:request)
        controller.request.accepts_languages.each do |lang|
-         if template = _pick_template_sub(template_file_name, ".#{lang}")
-           controller.request.language= lang
+         if template = _pick_template_sub(template_file_name, lang)
            return template
          end
        end
      end
  
-     # search for not localized version
-     if template = _pick_template_sub(template_file_name)
-       template
-     else
-       # not found in view_paths
-       template = ActionView::Template.new(template_path, view_paths)
- 
-       if self.class.warn_cache_misses && logger
-         logger.debug "[PERFORMANCE] Rendering a template that was " +
-           "not found in view path. Templates outside the view path are " +
-           "not cached and result in expensive disk operations. Move this " +
-           "file into #{view_paths.join(':')} or add the folder to your " +
-           "view path list"
-       end
- 
-       template
+     # not found in view_paths
+     template = ActionView::Template.new(template_path, view_paths)
+     if self.class.warn_cache_misses && logger
+       logger.debug "[PERFORMANCE] Rendering a template that was " +
+         "not found in view path. Templates outside the view path are " +
+         "not cached and result in expensive disk operations. Move this " +
+         "file into #{view_paths.join(':')} or add the folder to your " +
+         "view path list"
      end
+     template
+ 
    end
  
  end
@@ -245,14 +242,14 @@
              :only_path => true, 
              :skip_relative_url_root => true, 
              :format => params[:format],
-             :rails_language => request.accepts_languages.first))
+             :rails_language => request.language_priority.first))
        when String
          options
        else
          p= request.path.split('.')
          p.pop if ActionController::AbstractRequest.acceptable_language?(p.last)
          p[0]+= self.class.page_cache_extension if p.count==1
-         p << request.accepts_languages.first
+         p << request.language_priority.first
          p.join('.')
      end
  
@@ -264,7 +261,6 @@
  
  module ActionController::Caching::Actions
    class ActionCachePath
-     attr_reader :language
  
      def initialize(controller, options = {}, infer_extension=true)
        if infer_extension and options.is_a? Hash
@@ -272,7 +268,7 @@
          options = controller.params.merge(
                    options.reverse_merge(
                        :format => request_extension, 
-                       :rails_language => controller.request.accepts_languages.first))
+                       :rails_language => controller.request.language_priority.first))
        end
        path = controller.url_for(options).split('://').last
        if infer_extension
@@ -317,7 +313,7 @@
          ActiveSupport::Cache.expand_cache_key(
                key.is_a?(Hash) ? 
                    url_for(key.reverse_merge(
-                            :rails_language=>request.accepts_languages.first)
+                            :rails_language=>request.language_priority.first)
                        ).split("://").last :
                    key, 
                :views)
